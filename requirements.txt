@@ -15,3 +15,6 @@ pillow~=11.1.0
 ollama~=0.4.7
 python-multipart
 pydantic[email]
+aiokafka
+kafka-python
+aiomysql
