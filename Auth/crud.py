@@ -6,7 +6,8 @@ from .schemas import UserCreate,User,Token,UpdateUser
 import models
 from .auth import get_password_hash,create_access_token,verify_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=""
+                                              "n")
 
 async def create_user(db: Session, user: UserCreate):
     hashed_password = get_password_hash(user.password)
