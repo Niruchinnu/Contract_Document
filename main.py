@@ -3,9 +3,17 @@ from Document import router as document_router
 from database import engine, Base
 from Auth import router as auth_router
 from Document.kafka_consumer import KafkaConsumerClient
-import asyncio
 from Document.kafka_admin import create_kafka_topic
+from Document.kafka_producer import get_kafka_producer, stop_kafka_producer
+import asyncio
 from contextlib import asynccontextmanager
+import logging
+import threading
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 # ✅ Function to initialize models
 async def init_models():
@@ -17,31 +25,33 @@ async def init_models():
 consumer_client = KafkaConsumerClient(topic="document-processing")
 
 
+def start_kafka_consumer():
+    """Run Kafka consumer in a separate thread."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(consumer_client.consume_from_kafka())
+
+
 @asynccontextmanager
 async def lifespan(_):
     """Manage startup and shutdown of Kafka consumer."""
-    create_kafka_topic()  # Ensure Kafka topic exists
+    create_kafka_topic()
 
-    # Start the Kafka consumer
-    consumer_task = asyncio.create_task(consumer_client.consume_from_kafka())
+    # ✅ Start Kafka Consumer in a separate thread
+    consumer_thread = threading.Thread(target=start_kafka_consumer, daemon=True)
+    consumer_thread.start()
 
-    try:
-        yield  # Keep the app running
-    finally:
-        consumer_task.cancel()
-        try:
-            await consumer_task  # Ensure task is properly canceled
-        except asyncio.CancelledError:
-            pass  # Expected behavior when canceling
-        await consumer_client.stop_consumer()  # Stop Kafka client safely
+    yield  # Let FastAPI run
+
+    # ✅ Stop the Kafka Consumer safely on shutdown
+    await consumer_client.stop_consumer()
 
 
-# Initialize FastAPI with lifespan event
 app = FastAPI(lifespan=lifespan)
 
-# Include routers
-app.include_router(document_router.router)
-app.include_router(auth_router.router)
+# ✅ Include routers
+app.include_router(document_router.router, tags=["documents"])
+app.include_router(auth_router.router, tags=["auth"])
 
 
 @app.get("/")

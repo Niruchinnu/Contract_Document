@@ -1,39 +1,33 @@
-from kafka.admin import KafkaAdminClient, NewTopic
-from kafka.errors import TopicAlreadyExistsError
+from confluent_kafka.admin import AdminClient, NewTopic
 
 KAFKA_BROKER_URL = "localhost:9092"  # Replace with your Kafka broker URL
 KAFKA_TOPIC = "document-processing"  # Replace with your topic name
-KAFKA_ADMIN_CLIENT = "fastapi-admin-client"  # Unique client ID for the admin client
+
 
 def create_kafka_topic():
     """
     Create the Kafka topic if it doesn't already exist.
     """
-    admin_client = KafkaAdminClient(
-        bootstrap_servers=KAFKA_BROKER_URL,
-        client_id=KAFKA_ADMIN_CLIENT
-    )
+    admin_client = AdminClient({"bootstrap.servers": KAFKA_BROKER_URL})
+
+    # Check if the topic already exists
+    existing_topics = admin_client.list_topics(timeout=5).topics
+    if KAFKA_TOPIC in existing_topics:
+        print(f"Topic '{KAFKA_TOPIC}' already exists.")
+        return
+
+    # Create the topic
+    new_topic = NewTopic(KAFKA_TOPIC, num_partitions=1, replication_factor=1)
+
+    # Send request to create topic
+    future = admin_client.create_topics([new_topic])
 
     try:
-        # Check if the topic already exists
-        if KAFKA_TOPIC not in admin_client.list_topics():
-            # Create the topic
-            admin_client.create_topics(
-                new_topics=[
-                    NewTopic(
-                        name=KAFKA_TOPIC,
-                        num_partitions=1,  # Number of partitions
-                        replication_factor=1  # Replication factor
-                    )
-                ],
-                validate_only=False  # Actually create the topic
-            )
-            print(f"Topic '{KAFKA_TOPIC}' created successfully.")
-        else:
-            print(f"Topic '{KAFKA_TOPIC}' already exists.")
-    except TopicAlreadyExistsError:
-        print(f"Topic '{KAFKA_TOPIC}' already exists.")
+        future[KAFKA_TOPIC].result()  # Wait for topic creation to complete
+        print(f"Topic '{KAFKA_TOPIC}' created successfully.")
     except Exception as e:
         print(f"Failed to create topic '{KAFKA_TOPIC}': {e}")
-    finally:
-        admin_client.close()
+
+
+# Run the function
+create_kafka_topic()
