@@ -16,5 +16,5 @@ ollama~=0.4.7
 python-multipart
 pydantic[email]
 aiokafka
-kafka-python
 aiomysql
+confluent-kafka
