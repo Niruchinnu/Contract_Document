@@ -15,7 +15,8 @@ async def get_kafka_producer():
     if _producer is None:
         _producer = AIOKafkaProducer(
             bootstrap_servers='localhost:9092',
-            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+            max_request_size=200000000
         )
         await _producer.start()
         logger.info("✅ Kafka producer started.")
@@ -37,6 +38,6 @@ async def send_to_kafka(topic: str, message: dict):
         await get_kafka_producer()  # Ensure producer is running
     try:
         await _producer.send_and_wait(topic, message)  # ✅ Fully async
-        logger.info(f"✅ Sent to Kafka '{topic}': {message}")
+        logger.info(f"✅ Sent to Kafka '{topic}'")
     except Exception as e:
         logger.error(f"❌ Failed to send message: {e}")
